@@ -10,7 +10,6 @@
 #define SUCESSO 0
 
 typedef struct Node {
-    int eh_folha;
     int chave;
     pDDLL lista;
 } Node;
