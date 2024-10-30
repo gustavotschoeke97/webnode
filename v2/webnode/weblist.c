@@ -157,9 +157,8 @@ int iDado(pweblist pWL, void* dado) {
     int res = iEnd(no_arvore->noFolha->ddll, dado);
     if(res != SUCCESS) return FAIL;
 
-    if(pWL->contagemFolhas[indice_folha] != MAXIMO_NOS) {
-        pWL->contagemFolhas[indice_folha]++;
-    }
+    // incrementa contagem folhas
+    pWL->contagemFolhas[indice_folha]++;
 
     return SUCCESS;
 }

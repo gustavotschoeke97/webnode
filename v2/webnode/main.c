@@ -32,7 +32,11 @@ void deve_inserir_um_dado_do_tipo_int() {
     }
 
     int v = 10;
-    if(iDado(webList, &v)== SUCCESS) {
+    iDado(webList, &v);
+    v = 12;
+    iDado(webList, &v);
+    v = 9;
+    if(iDado(webList, &v) == SUCCESS) {
         pLista(webList, imprime_int);
         printf("Dado inserido com sucesso \n");
     } else {
