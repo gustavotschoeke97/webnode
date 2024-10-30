@@ -6,24 +6,23 @@
 #include "weblist_pub.h"
 
 #define MAXIMO_NOS 8
-#define FALHOU 1
-#define SUCESSO 0
 
-typedef struct Node {
-    int chave;
-    pDDLL lista;
-} Node;
+typedef struct NoWebList {
+    int chave;                // Chave associada ao nó folha
+    pDDLL ddll;               // Ponteiro para a DDLL
+} NoWebList;
 
-typedef struct ArvoreNode {
-    int eh_folha;
-    struct ArvoreNode *folhas[MAXIMO_NOS];
-    Node *node;
-} ArvoreNode;
+typedef struct NoArvore {
+    int ehFolha;               // Indica se é nó folha
+    struct NoArvore* filhos[MAXIMO_NOS]; // Ponteiros para os nós filhos
+    NoWebList* noFolha;        // Ponteiro para o NoWebList se for folha
+} NoArvore;
 
-typedef struct WebList {
-    int nivel;
-    ArvoreNode *raiz;
-    int total_de_folhas;
-    int *contagem_nos_folhas;
-    int sizedata;
+typedef struct weblist {
+    int nivel;               // Nível da árvore
+    int sizedata;            // Tamanho do tipo de dado armazenado
+    NoArvore* raiz;          // Ponteiro para o nó raiz
+    int totalFolhas;         // Total de nós folhas
+    int *contagemFolhas;     // Contagem de nós folhas 
+    NoArvore** ponteirosNoArvore; // Array de ponteiros para nós folha para acesso rápido
 } WebList;

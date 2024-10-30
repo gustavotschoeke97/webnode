@@ -1,4 +1,5 @@
 #include "weblist_pri.h"
+#include <stdlib.h>
 
 int int_pow(int base, int exp) {
     int result = 1;
@@ -8,94 +9,182 @@ int int_pow(int base, int exp) {
     return result;
 }
 
-void libera_arvore(ArvoreNode *arvore_node) {
-    if (arvore_node == NULL) return;
+void libera_arvore(NoArvore *no_arvore) {
+    if (no_arvore == NULL) return;
 
-    if (arvore_node->eh_folha) {
-        if (arvore_node->node) {
-            if (arvore_node->node->lista != NULL) {
-                dDDLL(&(arvore_node->node->lista));
+    if (no_arvore->ehFolha) {
+        if (no_arvore->noFolha) {
+            if (no_arvore->noFolha->ddll != NULL) {
+                dDDLL(&(no_arvore->noFolha->ddll));
             }
-            free(arvore_node->node);
+            free(no_arvore->noFolha);
         }
     } else {
         for (int i = 0; i < MAXIMO_NOS; i++) {
-            libera_arvore(arvore_node->folhas[i]);
+            libera_arvore(no_arvore->filhos[i]);
         }
     }
-    free(arvore_node);
+    free(no_arvore);
 }
 
-ArvoreNode *criar_arvore(int nivel_atual, int nivel_maximo, int *contador_chave) {
-    ArvoreNode *arvore_no = malloc(sizeof(ArvoreNode));
-    if (arvore_no == NULL) return NULL;
+NoArvore *criarNoArvore(int nivel_atual, int nivel_maximo, int *contador_chave, NoArvore **nos_arvore_array, int *indice_folha) {
+    NoArvore* no_arvore = (NoArvore*)malloc(sizeof(NoArvore));
 
-    if (nivel_atual == nivel_maximo) {
-        arvore_no->eh_folha = 1;
-        
-        arvore_no->node = malloc(sizeof(Node));
-        if (arvore_no->node == NULL) {
-            free(arvore_no);
-            return NULL;
-        }
-        
-        arvore_no->node->chave = (*contador_chave)++;
-        arvore_no->node->lista = NULL;
-    } else {
-        arvore_no->eh_folha = 0;
-        arvore_no->node = NULL;
+    if(no_arvore == NULL) return NULL;
+
+    if(nivel_atual == nivel_maximo) {
+        // Nó folha
+        no_arvore->ehFolha = 1;
+        no_arvore->noFolha = (NoWebList*)malloc(sizeof(NoWebList));
+
+        no_arvore->noFolha->chave = (*contador_chave)++; // chave incremental
+        no_arvore->noFolha->ddll = NULL; // inicializa ddll
+
+        // Armazena o ponteiro em um array para acesso rápido
+        nos_arvore_array[*indice_folha] = no_arvore;
+        (*indice_folha)++; // Incrementa o índice
+
+        // Inicializa os filhos como NULL
         for (int i = 0; i < MAXIMO_NOS; i++) {
-            arvore_no->folhas[i] = criar_arvore(nivel_atual + 1, nivel_maximo, contador_chave);
-            if (arvore_no->folhas[i] == NULL) {
+            no_arvore->filhos[i] = NULL;
+        }
+    } else {
+        // Nó da árvore - interno
+        no_arvore->ehFolha = 0;
+        no_arvore->noFolha = NULL;
+
+        for (int i = 0; i < MAXIMO_NOS; i++) {
+            // criar recursivamente os demais filhos
+            no_arvore->filhos[i] = criarNoArvore(nivel_atual + 1, nivel_maximo, contador_chave, nos_arvore_array, indice_folha);
+
+            // libera árvore caso dê erro na alocação de memória
+            if(no_arvore->filhos[i] == NULL) {
                 for (int j = 0; j < i; j++) {
-                    libera_arvore(arvore_no->folhas[j]);
+                    libera_arvore(no_arvore->filhos[j]);    
                 }
-                free(arvore_no);
+                free(no_arvore);
                 return NULL;
             }
         }
     }
-    return arvore_no;
+
+    return no_arvore;
 }
 
-int cWL(ppWL ppWL, int nivel, int sizedata) {
-    if(ppWL == NULL || *ppWL == NULL || nivel < 0 || sizedata <= 0) return FALHOU;
+int cWL(ppweblist ppWL, int nivel, int sizedata) {
+    if(ppWL == NULL || nivel < 0 || sizedata <= 0) return FAIL;
 
-    *ppWL = (pWL) malloc(sizeof(WebList));
-    if (*ppWL == NULL) {
-        return FALHOU;
-    }
+    *ppWL = (pweblist) malloc(sizeof(WebList));
+    if(*ppWL == NULL) return FAIL;
 
-    (*ppWL)->sizedata = sizedata;
     (*ppWL)->nivel = nivel;
+    (*ppWL)->sizedata = sizedata;
 
-    int num_nos_folha =  int_pow(MAXIMO_NOS, nivel + 1);
-    (*ppWL)->total_de_folhas = num_nos_folha;
-    (*ppWL)->contagem_nos_folhas = (int*) calloc(num_nos_folha, sizeof(int));
-    if ((*ppWL)->contagem_nos_folhas == NULL) {
+    int total_folhas = int_pow(MAXIMO_NOS, nivel);
+    (*ppWL)->totalFolhas = total_folhas;
+
+    // Array com índices das folhas
+    (*ppWL)->ponteirosNoArvore = (NoArvore **) malloc(total_folhas * sizeof(NoArvore*));
+    if((*ppWL)->ponteirosNoArvore == NULL) {
         free(*ppWL);
-        *ppWL = NULL;
-        return FALHOU;
+        return FAIL;
     }
 
+    // Cria um array zerado [0, 0, 0 ...]
+    (*ppWL)->contagemFolhas = (int*)calloc(total_folhas, sizeof(int));
+    if((*ppWL)->contagemFolhas == NULL) {
+        free((*ppWL)->ponteirosNoArvore);
+        free(*ppWL);
+        return FAIL;
+    }
+
+    int indice_folha = 0;
     int contador_chave = 0;
-    (*ppWL)->raiz = criar_arvore(0, nivel, &contador_chave);
-    if ((*ppWL)->raiz == NULL) {
-        free((*ppWL)->contagem_nos_folhas);
+
+    (*ppWL)->raiz = criarNoArvore(0, nivel, &contador_chave, (*ppWL)->ponteirosNoArvore, &indice_folha);
+    if((*ppWL)->raiz == NULL) {
+        free((*ppWL)->contagemFolhas);
+        free((*ppWL)->ponteirosNoArvore);
         free(*ppWL);
-        *ppWL = NULL;
-        return FALHOU;
+        return FAIL;
     }
 
-    return SUCESSO;
+    return SUCCESS;
 }
 
-int dWL(ppWL ppWL) {
-    if(ppWL == NULL || *ppWL == NULL) return FALHOU;
+int dWL(ppweblist ppWL) {
+    if(ppWL == NULL || *ppWL == NULL) return FAIL;
 
     libera_arvore((*ppWL)->raiz);
+    free((*ppWL)->contagemFolhas);
+    free((*ppWL)->ponteirosNoArvore);
     free(*ppWL);
     *ppWL = NULL;
 
-    return SUCESSO;
+    return SUCCESS;
+}
+
+int iDado(pweblist pWL, void* dado) {
+    if(pWL == NULL || dado == NULL) return FAIL;
+
+    int min_contagem = pWL->contagemFolhas[0];
+    for(int i = 0; i < pWL->totalFolhas; i++) {
+        if(pWL->contagemFolhas[i] < min_contagem) {
+            min_contagem = pWL->contagemFolhas[i];
+        }
+    }
+
+    int indice_folha = -1;
+    for (int i = 0; i < pWL->totalFolhas; i++) {
+        if(pWL->contagemFolhas[i] == min_contagem) {
+            indice_folha = i;
+            break;
+        }
+    }
+
+    if(indice_folha == -1) return FAIL;
+
+    NoArvore *no_arvore = pWL->ponteirosNoArvore[indice_folha];
+    if(no_arvore == NULL || no_arvore->ehFolha != 1 || no_arvore->noFolha == NULL) {
+        return FAIL;
+    }
+
+    if(no_arvore->noFolha->ddll == NULL) {
+        int res = cDDLL(&(no_arvore->noFolha->ddll), pWL->sizedata);
+        if(res != SUCCESS) return FAIL;
+    }
+
+    int res = iEnd(no_arvore->noFolha->ddll, dado);
+    if(res != SUCCESS) return FAIL;
+
+    if(pWL->contagemFolhas[indice_folha] != MAXIMO_NOS) {
+        pWL->contagemFolhas[indice_folha]++;
+    }
+
+    return SUCCESS;
+}
+
+// Função para percorrer a lista de dados
+int pLista(pweblist pWL, void (*imprime)(void *a)) {
+
+    if(pWL == NULL || imprime == NULL) return FAIL;
+
+    for (int i = 0; i < pWL->totalFolhas; i++) {
+        if(pWL->ponteirosNoArvore[i]->noFolha->ddll != NULL) {
+            int contagem = countElements(pWL->ponteirosNoArvore[i]->noFolha->ddll);
+
+            void *temp = malloc(pWL->sizedata);
+            if(temp == NULL) return FAIL;
+
+            for (int j = 0; j < contagem; j++) {
+                if(sPosition(pWL->ponteirosNoArvore[i]->noFolha->ddll, j, temp) == SUCCESS) {
+                    imprime(temp);
+                }
+            }
+
+            free(temp);
+        }
+    }
+
+    return SUCCESS;
 }
