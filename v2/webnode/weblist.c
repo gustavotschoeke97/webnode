@@ -1,4 +1,5 @@
 #include "weblist_pri.h"
+#include <stdio.h>
 #include <stdlib.h>
 
 int int_pow(int base, int exp) {
@@ -9,7 +10,7 @@ int int_pow(int base, int exp) {
     return result;
 }
 
-void libera_arvore(NoArvore *no_arvore) {
+void liberaArvore(NoArvore *no_arvore) {
     if (no_arvore == NULL) return;
 
     if (no_arvore->ehFolha) {
@@ -21,7 +22,7 @@ void libera_arvore(NoArvore *no_arvore) {
         }
     } else {
         for (int i = 0; i < MAXIMO_NOS; i++) {
-            libera_arvore(no_arvore->filhos[i]);
+            liberaArvore(no_arvore->filhos[i]);
         }
     }
     free(no_arvore);
@@ -60,7 +61,7 @@ NoArvore *criarNoArvore(int nivel_atual, int nivel_maximo, int *contador_chave, 
             // libera árvore caso dê erro na alocação de memória
             if(no_arvore->filhos[i] == NULL) {
                 for (int j = 0; j < i; j++) {
-                    libera_arvore(no_arvore->filhos[j]);    
+                    liberaArvore(no_arvore->filhos[j]);    
                 }
                 free(no_arvore);
                 return NULL;
@@ -69,6 +70,62 @@ NoArvore *criarNoArvore(int nivel_atual, int nivel_maximo, int *contador_chave, 
     }
 
     return no_arvore;
+}
+
+
+// Busca dado normal
+int buscarEmDDLL(pDDLL ddll, void *dado, int sizedata) {
+    if(ddll == NULL) return FAIL;
+
+    int contagem = countElements(ddll);
+    void *temp = malloc(sizedata);
+    if( temp == NULL) return FAIL;
+
+    for (int i = 0; i < contagem; i++) {
+        if (sPosition(ddll, i, temp) == SUCCESS) {
+            if(memcmp(temp, dado, sizedata) == 0) {
+                free(temp);
+                return SUCCESS;
+            }
+        }
+    }
+
+    free(temp);
+    return FAIL;
+}
+
+int buscaBinariaEmDDLL(pDDLL ddll, void *dado, int sizedata, int (*compare)(void *a, void* b), int *posicao) {
+    if(ddll == NULL) return FAIL;
+
+    *posicao = -1;
+    int inicio = 0;
+    int fim = countElements(ddll) -1;
+    void *temp = malloc(sizedata);
+
+    if(temp == NULL) return FAIL;
+
+  while (inicio <= fim) {
+        int meio = (inicio + fim) / 2;
+
+        if (sPosition(ddll, meio, temp) != SUCCESS) {
+            free(temp);
+            return FAIL;
+        }
+
+        int cmp = compare(temp, dado);
+        if (cmp == 0) {
+            *posicao = meio; // Armazena a posição do elemento encontrado
+            free(temp);
+            return SUCCESS;
+        } else if (cmp < 0) {
+            inicio = meio + 1;
+        } else {
+            fim = meio - 1;
+        }
+    }
+
+    free(temp);
+    return  FAIL;
 }
 
 int cWL(ppweblist ppWL, int nivel, int sizedata) {
@@ -115,7 +172,7 @@ int cWL(ppweblist ppWL, int nivel, int sizedata) {
 int dWL(ppweblist ppWL) {
     if(ppWL == NULL || *ppWL == NULL) return FAIL;
 
-    libera_arvore((*ppWL)->raiz);
+    liberaArvore((*ppWL)->raiz);
     free((*ppWL)->contagemFolhas);
     free((*ppWL)->ponteirosNoArvore);
     free(*ppWL);
@@ -124,7 +181,7 @@ int dWL(ppweblist ppWL) {
     return SUCCESS;
 }
 
-int iDado(pweblist pWL, void* dado) {
+int iDado(pweblist pWL, void* dado, int (*cmp)(void *a , void *b)) {
     if(pWL == NULL || dado == NULL) return FAIL;
 
     int min_contagem = pWL->contagemFolhas[0];
@@ -154,13 +211,76 @@ int iDado(pweblist pWL, void* dado) {
         if(res != SUCCESS) return FAIL;
     }
 
-    int res = iEnd(no_arvore->noFolha->ddll, dado);
+    int pos_inserir = 0;
+    int contagem = countElements(no_arvore->noFolha->ddll);
+    void *temp = malloc(pWL->sizedata);
+    if(temp == NULL) return FAIL;
+
+    // encontra a posição correta para inserir
+    for (int i = 0; i < contagem; i++) {
+        if(sPosition(no_arvore->noFolha->ddll, i, temp) != SUCCESS) {
+            free(temp);
+            return FAIL;
+        }
+
+        if(cmp(dado, temp) < 0) {
+            pos_inserir = i;
+            break;
+        }
+
+        pos_inserir = i + 1; // insere no final caso nao encontre a posição
+    }
+
+    free(temp);
+
+    int res = iPosition(no_arvore->noFolha->ddll, pos_inserir, dado);
     if(res != SUCCESS) return FAIL;
 
-    // incrementa contagem folhas
+    // printf("Total: %d indice: %d \n", ++pWL->contagemFolhas[indice_folha], indice_folha);
     pWL->contagemFolhas[indice_folha]++;
 
     return SUCCESS;
+}
+
+// Função para remover um dado
+int rDado(pweblist pWL, void* dado, int (*cmp) (void *a, void *b)) {
+    if(pWL == NULL || dado == NULL || cmp == NULL) return FAIL;
+
+    int removido = FAIL;
+    int posicao;
+
+    for (int i = 0; i < pWL->totalFolhas; i++) {
+            if(pWL->ponteirosNoArvore[i]->noFolha->ddll != NULL) {
+            if(buscaBinariaEmDDLL(pWL->ponteirosNoArvore[i]->noFolha->ddll, dado, pWL->sizedata, cmp, &posicao) == SUCCESS) {
+                if(rPosition(pWL->ponteirosNoArvore[i]->noFolha->ddll, posicao, dado) == SUCCESS) {
+                   if (pWL->contagemFolhas[i] > 0) {
+                        pWL->contagemFolhas[i]--;
+                    }
+
+                    return SUCCESS;
+                }
+            }
+        }
+    }
+
+    return removido;
+}
+
+int bDado(pweblist pWL, void* dado, int (*cmp)(void *a, void *b)) {
+    if(pWL == NULL || dado == NULL || cmp == NULL) return FAIL;
+    
+    int encontrado = FAIL;
+    int posicao;
+    for(int i = 0; i < pWL->totalFolhas; i++) {
+        if(pWL->ponteirosNoArvore[i]->noFolha->ddll != NULL) {
+            if(buscaBinariaEmDDLL(pWL->ponteirosNoArvore[i]->noFolha->ddll, dado, pWL->sizedata, cmp, &posicao) == SUCCESS) {
+                encontrado = SUCCESS;
+                break;
+            }
+        }
+    }
+
+    return encontrado;
 }
 
 // Função para percorrer a lista de dados
@@ -184,6 +304,66 @@ int pLista(pweblist pWL, void (*imprime)(void *a)) {
             free(temp);
         }
     }
+
+    return SUCCESS;
+}
+
+
+NoWebList *encontraNoPorChave(pweblist pWL, int chave) {
+    if (pWL == NULL || chave < 0) return NULL;
+    
+    for (int i = 0; i < pWL->totalFolhas; i++) {
+        if (pWL->ponteirosNoArvore[i]->noFolha->chave == chave) {
+            return pWL->ponteirosNoArvore[i]->noFolha;
+        }
+    }
+
+    return NULL;
+}
+
+int cpLista(pweblist pWL, int chave, ppDDLL retorno) {
+    if (pWL == NULL || chave < 0 || retorno == NULL) return FAIL;
+
+    NoWebList *noFolha = encontraNoPorChave(pWL, chave);
+    if (noFolha == NULL || noFolha->ddll == NULL) return FAIL;
+
+    if (cDDLL(retorno, pWL->sizedata) != SUCCESS) {
+        return FAIL;
+    }
+
+    int contagem = countElements(noFolha->ddll);
+    void *temp = malloc(pWL->sizedata);
+    if (temp == NULL) {
+        dDDLL(retorno);
+        return FAIL;
+    }
+
+    for (int i = 0; i < contagem; i++) {
+        if (sPosition(noFolha->ddll, i, temp) == SUCCESS) {
+            if (iEnd(*retorno, temp) != SUCCESS) {
+                free(temp);
+                dDDLL(retorno);
+                return FAIL;
+            }
+        }
+    }
+
+    free(temp);
+    return SUCCESS;
+}
+
+int sbLista(pweblist pWL, int chave, pDDLL novaLista) {
+    if(pWL == NULL || chave < 0 || novaLista == NULL) return FAIL;
+
+    NoWebList *noFolha = encontraNoPorChave(pWL, chave);
+
+    if(noFolha == NULL || noFolha->ddll == NULL) return FAIL;
+
+    if(dDDLL(&(noFolha->ddll)) != SUCCESS) {
+        return FAIL;
+    }
+
+    noFolha->ddll = novaLista;
 
     return SUCCESS;
 }

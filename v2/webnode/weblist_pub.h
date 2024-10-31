@@ -1,14 +1,20 @@
-
+#include "ddll/DDLL_pub.h"
 # define SUCCESS 0
 # define FAIL 1
 
 typedef struct weblist * pweblist , ** ppweblist ;
+// struct ppDDLL;
 
 // Funcoes operacionais
 int cWL(ppweblist ppWL, int nivel, int sizedata);
 int dWL(ppweblist ppWL);
-int iDado(pweblist pWL, void* dado);
+int iDado(pweblist pWL, void* dado, int (*cmp)(void *a , void *b));
+int rDado(pweblist pWL, void* dado, int (*cmp)(void *a , void *b)); // remover um dado da estrutura;
+int bDado(pweblist pWL, void* dado, int (*cmp)(void *a, void *b));
 int pLista(pweblist pWL, void (*imprime)(void *a));
+
+int cpLista (pweblist pWL, int chave , ppDDLL retorno); // retornar uma copia da DDLL correspondente a chave ;
+int sbLista(pweblist pWL, int chave, pDDLL novaLista);
 
 // Funcoes focada nos dados
 // int iDado (...) ; // inserir um novo dado na estrutura ;
