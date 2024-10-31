@@ -367,3 +367,19 @@ int sbLista(pweblist pWL, int chave, pDDLL novaLista) {
 
     return SUCCESS;
 }
+
+// Retornar o número total de elementos na WebList
+int nroEleWL(pweblist pWL, int *retorno) {
+    if(pWL == NULL || retorno == NULL) {
+        return FAIL;
+    }
+
+    int total = 0;
+    for(int i = 0; i < pWL->totalFolhas; i++) {
+        total += pWL->contagemFolhas[i];
+    }
+
+    *retorno = total;
+
+    return SUCCESS;
+}

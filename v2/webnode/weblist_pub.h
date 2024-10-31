@@ -15,7 +15,7 @@ int pLista(pweblist pWL, void (*imprime)(void *a));
 
 int cpLista (pweblist pWL, int chave , ppDDLL retorno); // retornar uma copia da DDLL correspondente a chave ;
 int sbLista(pweblist pWL, int chave, pDDLL novaLista);
-
+int nroEleWL(pweblist pWL, int *retorno);
 // Funcoes focada nos dados
 // int iDado (...) ; // inserir um novo dado na estrutura ;
 // int rDado (...) ; // remover um dado da estrutura ;
